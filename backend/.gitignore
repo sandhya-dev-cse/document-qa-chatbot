@@ -1,0 +1,19 @@
+# Environment variables
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Uploaded documents
+uploads/
+
+# Model/cache files
+.cache/
