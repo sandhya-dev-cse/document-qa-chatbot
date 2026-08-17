@@ -1,7 +1,18 @@
 from sentence_transformers import SentenceTransformer
 
-# Embedding model
-model = SentenceTransformer("all-MiniLM-L6-v2")
+_model = None
+
+
+def get_model():
+    global _model
+
+    if _model is None:
+        _model = SentenceTransformer(
+            "all-MiniLM-L6-v2",
+            device="cpu"
+        )
+
+    return _model
 
 
 def create_chunks(text, chunk_size=500, overlap=50):
@@ -10,13 +21,11 @@ def create_chunks(text, chunk_size=500, overlap=50):
     """
 
     words = text.split()
-
     chunks = []
 
     start = 0
 
     while start < len(words):
-
         end = start + chunk_size
 
         chunk = " ".join(words[start:end])
@@ -34,9 +43,16 @@ def generate_embeddings(chunks):
     Generate embeddings for document chunks.
     """
 
+    if not chunks:
+        return []
+
+    model = get_model()
+
     embeddings = model.encode(
         chunks,
-        normalize_embeddings=True
+        normalize_embeddings=True,
+        batch_size=16,
+        show_progress_bar=False
     )
 
     return embeddings.tolist()
