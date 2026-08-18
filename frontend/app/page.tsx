@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-const API_URL = "http://127.0.0.1:8000";
+const API_URL ="https://document-qa-chatbot-2-1yqo.onrender.com";
 
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
