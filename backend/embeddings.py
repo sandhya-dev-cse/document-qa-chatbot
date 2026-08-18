@@ -1,4 +1,4 @@
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 
 _model = None
 
@@ -7,19 +7,14 @@ def get_model():
     global _model
 
     if _model is None:
-        _model = SentenceTransformer(
-            "all-MiniLM-L6-v2",
-            device="cpu"
+        _model = TextEmbedding(
+            model_name="BAAI/bge-small-en-v1.5"
         )
 
     return _model
 
 
 def create_chunks(text, chunk_size=500, overlap=50):
-    """
-    Split document text into overlapping chunks.
-    """
-
     words = text.split()
     chunks = []
 
@@ -27,7 +22,6 @@ def create_chunks(text, chunk_size=500, overlap=50):
 
     while start < len(words):
         end = start + chunk_size
-
         chunk = " ".join(words[start:end])
 
         if chunk.strip():
@@ -39,20 +33,11 @@ def create_chunks(text, chunk_size=500, overlap=50):
 
 
 def generate_embeddings(chunks):
-    """
-    Generate embeddings for document chunks.
-    """
-
     if not chunks:
         return []
 
     model = get_model()
 
-    embeddings = model.encode(
-        chunks,
-        normalize_embeddings=True,
-        batch_size=16,
-        show_progress_bar=False
-    )
+    embeddings = model.embed(chunks)
 
-    return embeddings.tolist()
+    return [embedding.tolist() for embedding in embeddings]
