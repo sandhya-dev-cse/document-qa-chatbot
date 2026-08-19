@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 
-const API_URL = "https://document-qa-chatbot-2-1yqo.onrender.com";
+const API_URL = "https://document-qa-chatbot-secc.onrender.com"
 
 export default function LoginPage() {
   const router = useRouter();

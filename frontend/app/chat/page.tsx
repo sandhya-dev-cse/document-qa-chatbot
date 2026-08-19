@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-const API_URL = "https://document-qa-chatbot-2-1yqo.onrender.com";
+const API_URL = "https://document-qa-chatbot-secc.onrender.com";
 
 export default function ChatPage() {
   const router = useRouter();
