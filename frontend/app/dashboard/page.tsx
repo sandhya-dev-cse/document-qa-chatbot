@@ -3,179 +3,166 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function Dashboard() {
+const API_URL = "https://document-qa-chatbot-2-1yqo.onrender.com";
+
+export default function DashboardPage() {
   const router = useRouter();
 
-  const [question, setQuestion] = useState("");
-  const [documents, setDocuments] = useState<string[]>([]);
-  const [selectedDocument, setSelectedDocument] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [uploadMessage, setUploadMessage] = useState("");
+  const [uploading, setUploading] = useState(false);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    router.push("/login");
+  const uploadDocument = async () => {
+    if (!file) {
+      setUploadMessage("Please select a document first.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      setUploading(true);
+      setUploadMessage("Uploading document...");
+
+      const response = await fetch(`${API_URL}/documents/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Upload failed");
+      }
+
+      setUploadMessage("Document uploaded successfully!");
+
+      // Store document information
+      localStorage.setItem("documentId", data.document_id);
+      localStorage.setItem("documentName", data.filename);
+
+    } catch (error) {
+      setUploadMessage(
+        error instanceof Error ? error.message : "Upload failed"
+      );
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const openChat = () => {
+    router.push("/chat");
+  };
 
-    if (!file) return;
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("documentId");
+    localStorage.removeItem("documentName");
 
-    setDocuments((previous) => [...previous, file.name]);
+    router.push("/");
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white">
+    <main className="min-h-screen bg-gray-100 px-4 py-10">
+      <div className="mx-auto max-w-4xl">
 
-      {/* Navbar */}
-      <header className="border-b border-white/10 bg-slate-950/80 backdrop-blur-xl">
-        <div className="flex h-16 items-center justify-between px-6">
+        {/* Header */}
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Dashboard
+            </h1>
 
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-lg text-slate-950">
-              📄
-            </div>
-
-            <span className="text-lg font-semibold">
-              DocumentAI
-            </span>
-          </div>
-
-          <button
-            onClick={handleLogout}
-            className="rounded-xl border border-white/10 px-4 py-2 text-sm text-slate-300 transition hover:bg-white/10 hover:text-white"
-          >
-            Logout
-          </button>
-
-        </div>
-      </header>
-
-      <div className="flex min-h-[calc(100vh-4rem)]">
-
-        {/* Sidebar */}
-        <aside className="hidden w-72 border-r border-white/10 p-5 md:block">
-
-          <div className="mb-6">
-            <h2 className="text-sm font-semibold text-slate-300">
-              Documents
-            </h2>
-
-            <p className="mt-1 text-xs text-slate-500">
-              Upload documents to ask questions.
+            <p className="mt-1 text-gray-600">
+              Upload a document to start asking questions.
             </p>
           </div>
 
-          {/* Upload */}
-          <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200">
-            <span>＋</span>
-            Upload document
+          <button
+            onClick={logout}
+            className="rounded-lg border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-700 transition hover:bg-gray-50"
+          >
+            Logout
+          </button>
+        </div>
 
-            <input
-              type="file"
-              accept=".pdf,.txt,.doc,.docx"
-              onChange={handleUpload}
-              className="hidden"
-            />
-          </label>
+        {/* Upload Card */}
+        <section className="rounded-2xl border border-gray-200 bg-white p-8 shadow-md">
 
-          {/* Document list */}
-          <div className="mt-6 space-y-2">
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">
+              Upload Document
+            </h2>
 
-            {documents.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-white/10 p-4 text-center text-xs text-slate-600">
-                No documents uploaded yet.
-              </div>
-            ) : (
-              documents.map((document, index) => (
-                <button
-                  key={`${document}-${index}`}
-                  onClick={() => setSelectedDocument(document)}
-                  className={`w-full rounded-xl px-3 py-3 text-left text-sm transition ${
-                    selectedDocument === document
-                      ? "bg-white/10 text-white"
-                      : "text-slate-400 hover:bg-white/5 hover:text-white"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <span>📄</span>
-
-                    <span className="truncate">
-                      {document}
-                    </span>
-                  </div>
-                </button>
-              ))
-            )}
-
+            <p className="mt-2 text-gray-600">
+              Supported formats: PDF and TXT
+            </p>
           </div>
-        </aside>
 
-        {/* Main content */}
-        <section className="flex flex-1 flex-col">
+          <div className="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center">
 
-          {/* Welcome */}
-          <div className="flex flex-1 flex-col items-center justify-center px-6">
-
-            <div className="mb-8 text-center">
-
-              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 text-3xl">
-                ✨
+            <label className="cursor-pointer">
+              <div className="mb-4 text-4xl">
+                📄
               </div>
 
-              <h1 className="text-3xl font-bold tracking-tight">
-                Ask your documents
-              </h1>
-
-              <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-400">
-                Upload a document and ask questions about its contents.
-                Your AI assistant will help you find the information you need.
+              <p className="font-semibold text-gray-800">
+                Choose a document
               </p>
 
-            </div>
+              <p className="mt-1 text-sm text-gray-500">
+                PDF or TXT files
+              </p>
 
-            {/* Selected document */}
-            {selectedDocument && (
-              <div className="mb-5 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">
-                📄 {selectedDocument}
+              <input
+                type="file"
+                accept=".pdf,.txt"
+                onChange={(e) =>
+                  setFile(e.target.files?.[0] || null)
+                }
+                className="hidden"
+              />
+            </label>
+
+            {file && (
+              <div className="mt-5 rounded-lg border border-gray-200 bg-white p-4">
+                <p className="text-sm font-semibold text-gray-800">
+                  Selected file
+                </p>
+
+                <p className="mt-1 break-all text-sm text-gray-600">
+                  {file.name}
+                </p>
               </div>
             )}
-
-            {/* Question box */}
-            <div className="w-full max-w-2xl">
-
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-2 shadow-2xl">
-
-                <textarea
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  placeholder="Ask a question about your document..."
-                  rows={3}
-                  className="w-full resize-none bg-transparent px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600"
-                />
-
-                <div className="flex items-center justify-between border-t border-white/10 px-2 pt-2">
-
-                  <span className="px-2 text-xs text-slate-600">
-                    AI-powered document Q&A
-                  </span>
-
-                  <button
-                    disabled={!question.trim()}
-                    className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    Ask
-                  </button>
-
-                </div>
-
-              </div>
-
-            </div>
-
           </div>
 
-        </section>
+          <button
+            onClick={uploadDocument}
+            disabled={uploading}
+            className="mt-6 w-full rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {uploading ? "Uploading..." : "Upload Document"}
+          </button>
 
+          {uploadMessage && (
+            <p className="mt-4 rounded-lg bg-gray-50 p-3 text-center font-medium text-gray-800">
+              {uploadMessage}
+            </p>
+          )}
+
+          {/* Chat button */}
+          {file && uploadMessage === "Document uploaded successfully!" && (
+            <button
+              onClick={openChat}
+              className="mt-4 w-full rounded-lg bg-green-600 px-5 py-3 font-semibold text-white transition hover:bg-green-700"
+            >
+              Open Document Chat →
+            </button>
+          )}
+
+        </section>
       </div>
     </main>
   );

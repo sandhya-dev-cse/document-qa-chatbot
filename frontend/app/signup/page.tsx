@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 
+
 const API_URL = "https://document-qa-chatbot-2-1yqo.onrender.com";
 
 export default function LoginPage() {
@@ -43,8 +44,10 @@ export default function LoginPage() {
         throw new Error(data.detail || "Login failed");
       }
 
+      // Store JWT token
       localStorage.setItem("token", data.token);
 
+      // Go to dashboard
       router.push("/dashboard");
     } catch (error) {
       setMessage(
@@ -88,37 +91,34 @@ export default function LoginPage() {
 
           {/* Password */}
           <div>
-            <label className="mb-2 block text-sm font-semibold text-gray-800">
-              Password
-            </label>
+  <label className="mb-2 block text-sm font-semibold text-gray-800">
+    Password
+  </label>
 
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 pr-12 text-black outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-              />
+  <div className="relative">
+    <input
+      type={showPassword ? "text" : "password"}
+      value={password}
+      onChange={(e) => setPassword(e.target.value)}
+      placeholder="Enter your password"
+      className="w-full rounded-lg border border-gray-300 px-4 py-3 pr-12 text-black outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+    />
 
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 transition hover:text-gray-800"
-                aria-label={
-                  showPassword ? "Hide password" : "Show password"
-                }
-              >
-                {showPassword ? (
-                  <EyeOff size={20} />
-                ) : (
-                  <Eye size={20} />
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Login */}
+    <button
+      type="button"
+      onClick={() => setShowPassword(!showPassword)}
+      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 transition hover:text-gray-800"
+      aria-label={showPassword ? "Hide password" : "Show password"}
+    >
+      {showPassword ? (
+        <EyeOff size={20} />
+      ) : (
+        <Eye size={20} />
+      )}
+    </button>
+  </div>
+</div>
+          {/* Login button */}
           <button
             onClick={handleLogin}
             disabled={loading}
@@ -127,14 +127,14 @@ export default function LoginPage() {
             {loading ? "Logging in..." : "Login"}
           </button>
 
-          {/* Message */}
+          {/* Error / message */}
           {message && (
             <p className="rounded-lg bg-gray-50 p-3 text-center text-sm font-medium text-red-600">
               {message}
             </p>
           )}
 
-          {/* Signup */}
+          {/* Signup link */}
           <p className="text-center text-sm text-gray-600">
             Don't have an account?{" "}
             <Link
