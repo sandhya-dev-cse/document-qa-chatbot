@@ -13,7 +13,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "https://document-qa-chatbot-2.vercel.app",
-        https://document-qa-chatbot-1mxx.vercel.app/
+        "https://document-qa-chatbot-1mxx.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
