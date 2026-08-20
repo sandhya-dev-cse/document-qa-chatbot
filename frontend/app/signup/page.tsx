@@ -5,10 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 
-
 const API_URL = "https://document-qa-chatbot-secc.onrender.com";
 
-export default function LoginPage() {
+export default function SignupPage() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
@@ -17,7 +16,7 @@ export default function LoginPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
+  const handleSignup = async () => {
     if (!email || !password) {
       setMessage("Please enter your email and password.");
       return;
@@ -27,7 +26,7 @@ export default function LoginPage() {
       setLoading(true);
       setMessage("");
 
-      const response = await fetch(`${API_URL}/auth/login`, {
+      const response = await fetch(`${API_URL}/auth/signup`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -41,17 +40,18 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || "Login failed");
+        throw new Error(data.detail || "Signup failed");
       }
 
-      // Store JWT token
-      localStorage.setItem("token", data.token);
+      setMessage("Account created successfully!");
 
-      // Go to dashboard
-      router.push("/dashboard");
+      setTimeout(() => {
+        router.push("/login");
+      }, 1000);
+
     } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : "Login failed"
+        error instanceof Error ? error.message : "Signup failed"
       );
     } finally {
       setLoading(false);
@@ -68,7 +68,7 @@ export default function LoginPage() {
           </h1>
 
           <p className="mt-2 text-gray-600">
-            Login to continue
+            Create your account
           </p>
         </div>
 
@@ -91,57 +91,60 @@ export default function LoginPage() {
 
           {/* Password */}
           <div>
-  <label className="mb-2 block text-sm font-semibold text-gray-800">
-    Password
-  </label>
+            <label className="mb-2 block text-sm font-semibold text-gray-800">
+              Password
+            </label>
 
-  <div className="relative">
-    <input
-      type={showPassword ? "text" : "password"}
-      value={password}
-      onChange={(e) => setPassword(e.target.value)}
-      placeholder="Enter your password"
-      className="w-full rounded-lg border border-gray-300 px-4 py-3 pr-12 text-black outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-    />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Create a password"
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 pr-12 text-black outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+              />
 
-    <button
-      type="button"
-      onClick={() => setShowPassword(!showPassword)}
-      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 transition hover:text-gray-800"
-      aria-label={showPassword ? "Hide password" : "Show password"}
-    >
-      {showPassword ? (
-        <EyeOff size={20} />
-      ) : (
-        <Eye size={20} />
-      )}
-    </button>
-  </div>
-</div>
-          {/* Login button */}
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 transition hover:text-gray-800"
+                aria-label={
+                  showPassword ? "Hide password" : "Show password"
+                }
+              >
+                {showPassword ? (
+                  <EyeOff size={20} />
+                ) : (
+                  <Eye size={20} />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Signup button */}
           <button
-            onClick={handleLogin}
+            onClick={handleSignup}
             disabled={loading}
             className="w-full rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading ? "Logging in..." : "Login"}
+            {loading ? "Creating account..." : "Sign Up"}
           </button>
 
-          {/* Error / message */}
+          {/* Message */}
           {message && (
             <p className="rounded-lg bg-gray-50 p-3 text-center text-sm font-medium text-red-600">
               {message}
             </p>
           )}
 
-          {/* Signup link */}
+          {/* Login link */}
           <p className="text-center text-sm text-gray-600">
-            Don't have an account?{" "}
+            Already have an account?{" "}
             <Link
-              href="/signup"
+              href="/login"
               className="font-semibold text-blue-600 hover:underline"
             >
-              Sign Up
+              Login
             </Link>
           </p>
 
