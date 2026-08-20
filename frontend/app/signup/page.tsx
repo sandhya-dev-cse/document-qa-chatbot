@@ -12,13 +12,22 @@ export default function SignupPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSignup = async () => {
-    if (!email || !password) {
-      setMessage("Please enter your email and password.");
+    if (!email || !password || !confirmPassword) {
+      setMessage("Please fill in all fields.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setMessage("Passwords do not match.");
       return;
     }
 
@@ -62,6 +71,7 @@ export default function SignupPage() {
     <main className="flex min-h-screen items-center justify-center bg-gray-100 px-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
 
+        {/* Header */}
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-gray-900">
             Document Q&A Chatbot
@@ -74,10 +84,10 @@ export default function SignupPage() {
 
         <div className="space-y-5">
 
-          {/* Email */}
+          {/* Username / Email */}
           <div>
             <label className="mb-2 block text-sm font-semibold text-gray-800">
-              Email
+              Username / Email
             </label>
 
             <input
@@ -108,9 +118,6 @@ export default function SignupPage() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 transition hover:text-gray-800"
-                aria-label={
-                  showPassword ? "Hide password" : "Show password"
-                }
               >
                 {showPassword ? (
                   <EyeOff size={20} />
@@ -121,7 +128,38 @@ export default function SignupPage() {
             </div>
           </div>
 
-          {/* Signup button */}
+          {/* Confirm Password */}
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-gray-800">
+              Confirm Password
+            </label>
+
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm your password"
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 pr-12 text-black outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+              />
+
+              <button
+                type="button"
+                onClick={() =>
+                  setShowConfirmPassword(!showConfirmPassword)
+                }
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 transition hover:text-gray-800"
+              >
+                {showConfirmPassword ? (
+                  <EyeOff size={20} />
+                ) : (
+                  <Eye size={20} />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Signup */}
           <button
             onClick={handleSignup}
             disabled={loading}
@@ -132,12 +170,18 @@ export default function SignupPage() {
 
           {/* Message */}
           {message && (
-            <p className="rounded-lg bg-gray-50 p-3 text-center text-sm font-medium text-red-600">
+            <p
+              className={`rounded-lg bg-gray-50 p-3 text-center text-sm font-medium ${
+                message === "Account created successfully!"
+                  ? "text-green-600"
+                  : "text-red-600"
+              }`}
+            >
               {message}
             </p>
           )}
 
-          {/* Login link */}
+          {/* Login */}
           <p className="text-center text-sm text-gray-600">
             Already have an account?{" "}
             <Link
