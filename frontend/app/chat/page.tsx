@@ -23,42 +23,50 @@ useEffect(() => {
 }, []);
 
   const askQuestion = async () => {
-    if (!question.trim()) {
-      setAnswer("Please enter a question.");
-      return;
+  if (!question.trim()) {
+    setAnswer("Please enter a question.");
+    return;
+  }
+
+  const documentId = localStorage.getItem("documentId");
+
+  if (!documentId) {
+    setAnswer("No document selected. Please go back to the dashboard.");
+    return;
+  }
+
+  try {
+    setLoading(true);
+    setAnswer("");
+
+    const response = await fetch(`${API_URL}/qa/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        question: question,
+        document_id: documentId,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.detail || "Unable to get answer");
     }
 
-    try {
-      setLoading(true);
-      setAnswer("");
-
-      const response = await fetch(`${API_URL}/qa/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          question: question,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || "Unable to get answer");
-      }
-
-      setAnswer(data.answer);
-    } catch (error) {
-      setAnswer(
-        error instanceof Error
-          ? error.message
-          : "Unable to get answer"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+    setAnswer(data.answer);
+  } catch (error) {
+    setAnswer(
+      error instanceof Error
+        ? error.message
+        : "Unable to get answer"
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   const goToDashboard = () => {
     router.push("/dashboard");

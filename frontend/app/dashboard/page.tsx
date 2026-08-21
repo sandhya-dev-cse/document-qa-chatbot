@@ -21,6 +21,7 @@ export default function DashboardPage() {
   const [uploadMessage, setUploadMessage] = useState("");
   const [uploading, setUploading] = useState(false);
   const [loadingDocuments, setLoadingDocuments] = useState(true);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // =========================
   // LOAD DOCUMENTS
@@ -69,6 +70,7 @@ export default function DashboardPage() {
 
     try {
       setUploading(true);
+      setUploadProgress(10);
       setUploadMessage("Uploading document...");
 
       const response = await fetch(
@@ -78,6 +80,7 @@ export default function DashboardPage() {
           body: formData,
         }
       );
+      setUploadProgress(70);
 
       const data = await response.json();
 
@@ -86,10 +89,17 @@ export default function DashboardPage() {
           data.detail || "Upload failed"
         );
       }
+      setUploadProgress(100);
 
-      setUploadMessage(
-        "Document uploaded successfully!"
-      );
+      setUploadMessage("Document uploaded successfully!");
+
+localStorage.setItem("documentId", data.document_id);
+localStorage.setItem("documentName", data.filename);
+
+// Go to the dedicated document page
+setTimeout(() => {
+  router.push("/chat");
+}, 500);
 
       setFile(null);
 
@@ -97,6 +107,7 @@ export default function DashboardPage() {
       await loadDocuments();
 
     } catch (error) {
+      setUploadProgress(0);
       setUploadMessage(
         error instanceof Error
           ? error.message
@@ -111,9 +122,19 @@ export default function DashboardPage() {
   // OPEN DOCUMENT
   // =========================
 
-  const openDocument = (documentId: string) => {
-    router.push(`/documents/${documentId}`);
-  };
+ const openDocument = (documentId: string) => {
+  localStorage.setItem("documentId", documentId);
+
+  const document = documents.find(
+    (doc) => doc.id === documentId
+  );
+
+  if (document) {
+    localStorage.setItem("documentName", document.filename);
+  }
+
+  router.push("/chat");
+};
 
   // =========================
   // LOGOUT
@@ -228,6 +249,25 @@ export default function DashboardPage() {
           )}
 
         </section>
+        {uploading && (
+  <div className="mt-4">
+
+    <div className="mb-2 flex justify-between text-sm font-medium text-gray-600">
+      <span>Uploading document...</span>
+      <span>{uploadProgress}%</span>
+    </div>
+
+    <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
+      <div
+        className="h-full rounded-full bg-blue-600 transition-all duration-500"
+        style={{
+          width: `${uploadProgress}%`,
+        }}
+      />
+    </div>
+
+  </div>
+)}
 
         {/* Documents */}
 

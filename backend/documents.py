@@ -24,14 +24,18 @@ def get_documents():
         db.documents.find(
             {},
             {
-                "extracted_text": 0,
-                "chunks": 0,
-                "embeddings": 0
+                "original_filename": 1,
+                "content_type": 1,
+                "size": 1,
+                "created_at": 1
             }
         ).sort("created_at", -1)
     )
 
     result = []
+
+
+    
 
     for document in documents:
         result.append({
@@ -199,3 +203,34 @@ async def upload_document(file: UploadFile = File(...)):
         "chunks_created": len(chunks),
         "embedding_size": len(embeddings[0]) if embeddings else 0
     }
+@router.get("/")
+def get_documents():
+
+    documents = list(
+        db.documents.find(
+            {},
+            {
+                "_id": 1,
+                "original_filename": 1,
+                "content_type": 1,
+                "size": 1,
+                "created_at": 1
+            }
+        ).sort("created_at", -1)
+    )
+
+    result = []
+
+    for document in documents:
+        result.append({
+            "id": str(document["_id"]),
+            "filename": document.get("original_filename"),
+            "content_type": document.get("content_type"),
+            "size": document.get("size", 0),
+            "created_at": str(document.get("created_at", ""))
+        })
+
+    return {
+        "documents": result
+    }
+    
