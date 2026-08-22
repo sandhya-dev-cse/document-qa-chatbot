@@ -1,4 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Header
+from pydantic import BaseModel
 from database import db
 from datetime import datetime, timezone
 from pypdf import PdfReader
@@ -7,6 +8,7 @@ from bson import ObjectId
 import jwt
 import os
 import uuid
+
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
 
@@ -22,7 +24,7 @@ JWT_ALGORITHM = "HS256"
 # GET CURRENT USER ID
 # =========================
 
-def get_current_user_id(authorization: str = Header(...)):
+def get_current_user_id(authorization: str):
 
     if not authorization.startswith("Bearer "):
         raise HTTPException(
@@ -63,6 +65,14 @@ def get_current_user_id(authorization: str = Header(...)):
 
 
 # =========================
+# RENAME REQUEST MODEL
+# =========================
+
+class RenameDocumentRequest(BaseModel):
+    filename: str
+
+
+# =========================
 # GET CURRENT USER DOCUMENTS
 # =========================
 
@@ -92,9 +102,11 @@ def get_documents(authorization: str = Header(...)):
             "filename": document.get("original_filename"),
             "content_type": document.get("content_type"),
             "size": document.get("size", 0),
-            "created_at": document["created_at"].isoformat()
-            if document.get("created_at")
-            else ""
+            "created_at": (
+                document["created_at"].isoformat()
+                if document.get("created_at")
+                else ""
+            )
         })
 
     return {
@@ -160,12 +172,11 @@ async def upload_document(
     authorization: str = Header(...)
 ):
 
-    # Get logged-in user
     user_id = get_current_user_id(authorization)
 
     allowed_types = [
         "application/pdf",
-        "text/plain",
+        "text/plain"
     ]
 
     if file.content_type not in allowed_types:
@@ -190,6 +201,7 @@ async def upload_document(
     with open(file_path, "wb") as buffer:
         buffer.write(content)
 
+
     # =========================
     # EXTRACT TEXT
     # =========================
@@ -209,7 +221,6 @@ async def upload_document(
                     extracted_text += text + "\n"
 
         except Exception as e:
-
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to extract PDF text: {str(e)}"
@@ -222,6 +233,7 @@ async def upload_document(
             errors="ignore"
         )
 
+
     # =========================
     # CREATE CHUNKS
     # =========================
@@ -229,11 +241,11 @@ async def upload_document(
     chunks = create_chunks(extracted_text)
 
     if not chunks:
-
         raise HTTPException(
             status_code=400,
             detail="No readable text found in the document."
         )
+
 
     # =========================
     # GENERATE EMBEDDINGS
@@ -241,12 +253,13 @@ async def upload_document(
 
     embeddings = generate_embeddings(chunks)
 
+
     # =========================
     # SAVE DOCUMENT
     # =========================
 
     document = {
-        "user_id": user_id,  # IMPORTANT
+        "user_id": user_id,
 
         "original_filename": file.filename,
         "saved_filename": saved_filename,
@@ -263,6 +276,7 @@ async def upload_document(
 
     result = db.documents.insert_one(document)
 
+
     # =========================
     # STORE CHUNKS
     # =========================
@@ -272,10 +286,7 @@ async def upload_document(
     for i, chunk in enumerate(chunks):
 
         chunk_documents.append({
-
-            # IMPORTANT: Associate chunks with user
             "user_id": user_id,
-
             "document_id": result.inserted_id,
             "original_filename": file.filename,
             "chunk_index": i,
@@ -294,17 +305,19 @@ async def upload_document(
         "filename": file.filename,
         "chunks_created": len(chunks)
     }
-    # =========================
-# DELETE DOCUMENT
+
+
+# =========================
+# RENAME DOCUMENT
 # =========================
 
-@router.delete("/{document_id}")
-def delete_document(
+@router.patch("/{document_id}")
+def rename_document(
     document_id: str,
+    data: RenameDocumentRequest,
     authorization: str = Header(...)
 ):
 
-    # Get logged-in user
     user_id = get_current_user_id(authorization)
 
     try:
@@ -316,7 +329,14 @@ def delete_document(
             detail="Invalid document ID"
         )
 
-    # Find document belonging to this user
+    new_filename = data.filename.strip()
+
+    if not new_filename:
+        raise HTTPException(
+            status_code=400,
+            detail="Document name cannot be empty"
+        )
+
     document = db.documents.find_one({
         "_id": object_id,
         "user_id": user_id
@@ -328,18 +348,88 @@ def delete_document(
             detail="Document not found"
         )
 
-    # Delete document
+    db.documents.update_one(
+        {
+            "_id": object_id,
+            "user_id": user_id
+        },
+        {
+            "$set": {
+                "original_filename": new_filename
+            }
+        }
+    )
+
+    db.document_chunks.update_many(
+        {
+            "document_id": object_id,
+            "user_id": user_id
+        },
+        {
+            "$set": {
+                "original_filename": new_filename
+            }
+        }
+    )
+
+    return {
+        "message": "Document renamed successfully",
+        "document_id": document_id,
+        "filename": new_filename
+    }
+
+
+# =========================
+# DELETE DOCUMENT
+# =========================
+
+@router.delete("/{document_id}")
+def delete_document(
+    document_id: str,
+    authorization: str = Header(...)
+):
+
+    user_id = get_current_user_id(authorization)
+
+    try:
+        object_id = ObjectId(document_id)
+
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid document ID"
+        )
+
+    document = db.documents.find_one({
+        "_id": object_id,
+        "user_id": user_id
+    })
+
+    if not document:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found"
+        )
+
     db.documents.delete_one({
         "_id": object_id,
         "user_id": user_id
     })
 
-    # Delete its chunks
     db.document_chunks.delete_many({
         "document_id": object_id,
         "user_id": user_id
     })
 
+    file_path = document.get("file_path")
+
+    if file_path and os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+        except Exception:
+            pass
+
     return {
-        "message": "Document deleted successfully"
+        "message": "Document deleted successfully",
+        "document_id": document_id
     }

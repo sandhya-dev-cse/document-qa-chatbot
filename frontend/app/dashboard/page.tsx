@@ -18,11 +18,15 @@ export default function DashboardPage() {
 
   const [file, setFile] = useState<File | null>(null);
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
+
   const [uploadMessage, setUploadMessage] = useState("");
   const [uploading, setUploading] = useState(false);
   const [loadingDocuments, setLoadingDocuments] = useState(true);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renameLoading, setRenameLoading] = useState(false);
 
   // =========================
   // LOAD DOCUMENTS
@@ -76,7 +80,6 @@ export default function DashboardPage() {
     }
 
     const formData = new FormData();
-
     formData.append("file", file);
 
     try {
@@ -113,7 +116,6 @@ export default function DashboardPage() {
       }
 
       setUploadProgress(100);
-
       setUploadMessage(
         "Document uploaded successfully!"
       );
@@ -132,11 +134,9 @@ export default function DashboardPage() {
 
       await loadDocuments();
 
-      // Go to document chat page
       setTimeout(() => {
         router.push("/chat");
       }, 500);
-
     } catch (error) {
       setUploadProgress(0);
 
@@ -175,15 +175,102 @@ export default function DashboardPage() {
   };
 
   // =========================
+  // START RENAME
+  // =========================
+
+  const startRename = (
+    document: DocumentItem
+  ) => {
+    setRenamingId(document.id);
+    setRenameValue(document.filename);
+  };
+
+  // =========================
+  // CANCEL RENAME
+  // =========================
+
+  const cancelRename = () => {
+    setRenamingId(null);
+    setRenameValue("");
+  };
+
+  // =========================
+  // RENAME DOCUMENT
+  // =========================
+
+  const renameDocument = async (
+    documentId: string
+  ) => {
+    if (!renameValue.trim()) {
+      alert("Please enter a document name.");
+      return;
+    }
+
+    try {
+      setRenameLoading(true);
+
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        router.push("/");
+        return;
+      }
+
+      const response = await fetch(
+        `${API_URL}/documents/${documentId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            filename: renameValue.trim(),
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail || "Failed to rename document"
+        );
+      }
+
+      setDocuments((currentDocuments) =>
+        currentDocuments.map((document) =>
+          document.id === documentId
+            ? {
+                ...document,
+                filename: data.filename,
+              }
+            : document
+        )
+      );
+
+      setRenamingId(null);
+      setRenameValue("");
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to rename document"
+      );
+    } finally {
+      setRenameLoading(false);
+    }
+  };
+
+  // =========================
   // DELETE DOCUMENT
   // =========================
 
   const deleteDocument = async (
-    documentId: string,
-    filename: string
+    documentId: string
   ) => {
     const confirmed = window.confirm(
-      `Are you sure you want to delete "${filename}"?`
+      "Are you sure you want to delete this document?"
     );
 
     if (!confirmed) {
@@ -191,8 +278,6 @@ export default function DashboardPage() {
     }
 
     try {
-      setDeletingId(documentId);
-
       const token = localStorage.getItem("token");
 
       if (!token) {
@@ -218,15 +303,13 @@ export default function DashboardPage() {
         );
       }
 
-      // Remove deleted document from the UI
-      setDocuments((previousDocuments) =>
-        previousDocuments.filter(
+      setDocuments((currentDocuments) =>
+        currentDocuments.filter(
           (document) =>
             document.id !== documentId
         )
       );
 
-      // Clear localStorage if this was the current document
       const currentDocumentId =
         localStorage.getItem("documentId");
 
@@ -234,20 +317,12 @@ export default function DashboardPage() {
         localStorage.removeItem("documentId");
         localStorage.removeItem("documentName");
       }
-
     } catch (error) {
-      console.error(
-        "Delete document error:",
-        error
-      );
-
       alert(
         error instanceof Error
           ? error.message
           : "Failed to delete document"
       );
-    } finally {
-      setDeletingId(null);
     }
   };
 
@@ -269,17 +344,12 @@ export default function DashboardPage() {
 
   return (
     <main className="min-h-screen bg-gray-100 px-4 py-10">
-
       <div className="mx-auto max-w-5xl">
 
-        {/* =========================
-            HEADER
-        ========================= */}
+        {/* HEADER */}
 
         <div className="mb-8 flex items-center justify-between">
-
           <div>
-
             <h1 className="text-3xl font-bold text-gray-900">
               Dashboard
             </h1>
@@ -287,7 +357,6 @@ export default function DashboardPage() {
             <p className="mt-1 text-gray-600">
               Upload and manage your documents.
             </p>
-
           </div>
 
           <button
@@ -296,12 +365,9 @@ export default function DashboardPage() {
           >
             Logout
           </button>
-
         </div>
 
-        {/* =========================
-            UPLOAD CARD
-        ========================= */}
+        {/* UPLOAD CARD */}
 
         <section className="mb-8 rounded-2xl border border-gray-200 bg-white p-8 shadow-md">
 
@@ -312,8 +378,6 @@ export default function DashboardPage() {
           <p className="mt-2 text-gray-600">
             Supported formats: PDF and TXT
           </p>
-
-          {/* File Selection */}
 
           <div className="mt-6 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center">
 
@@ -345,7 +409,6 @@ export default function DashboardPage() {
             </label>
 
             {file && (
-
               <div className="mt-5 rounded-lg border border-gray-200 bg-white p-4">
 
                 <p className="text-sm font-semibold text-gray-800">
@@ -357,12 +420,11 @@ export default function DashboardPage() {
                 </p>
 
               </div>
-
             )}
 
           </div>
 
-          {/* Upload Button */}
+          {/* UPLOAD BUTTON */}
 
           <button
             onClick={uploadDocument}
@@ -374,32 +436,25 @@ export default function DashboardPage() {
               : "Upload Document"}
           </button>
 
-          {/* Upload Message */}
-
           {uploadMessage && (
-
             <p className="mt-4 rounded-lg bg-gray-50 p-3 text-center font-medium text-gray-800">
               {uploadMessage}
             </p>
-
           )}
 
-          {/* Upload Progress */}
+          {/* PROGRESS BAR */}
 
           {uploading && (
-
-            <div className="mt-4">
+            <div className="mt-5">
 
               <div className="mb-2 flex justify-between text-sm font-medium text-gray-600">
-
                 <span>
-                  Uploading document...
+                  Processing document...
                 </span>
 
                 <span>
                   {uploadProgress}%
                 </span>
-
               </div>
 
               <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
@@ -414,14 +469,11 @@ export default function DashboardPage() {
               </div>
 
             </div>
-
           )}
 
         </section>
 
-        {/* =========================
-            DOCUMENTS
-        ========================= */}
+        {/* DOCUMENTS */}
 
         <section className="rounded-2xl border border-gray-200 bg-white p-8 shadow-md">
 
@@ -437,8 +489,6 @@ export default function DashboardPage() {
 
           </div>
 
-          {/* Loading */}
-
           {loadingDocuments ? (
 
             <div className="py-10 text-center text-gray-500">
@@ -446,8 +496,6 @@ export default function DashboardPage() {
             </div>
 
           ) : documents.length === 0 ? (
-
-            /* No Documents */
 
             <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-10 text-center">
 
@@ -467,73 +515,123 @@ export default function DashboardPage() {
 
           ) : (
 
-            /* Document List */
-
             <div className="space-y-3">
 
               {documents.map((document) => (
 
                 <div
                   key={document.id}
-                  className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white p-5 transition hover:border-blue-400 hover:bg-blue-50"
+                  className="rounded-xl border border-gray-200 bg-white p-5 transition hover:border-blue-300"
                 >
 
-                  {/* Document Information */}
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
-                  <div className="flex items-center gap-4">
+                    {/* DOCUMENT INFO */}
 
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-2xl">
-                      📄
+                    <div className="flex min-w-0 items-center gap-4">
+
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-2xl">
+                        📄
+                      </div>
+
+                      <div className="min-w-0">
+
+                        {renamingId === document.id ? (
+
+                          <div className="flex flex-wrap items-center gap-2">
+
+                            <input
+                              type="text"
+                              value={renameValue}
+                              onChange={(e) =>
+                                setRenameValue(
+                                  e.target.value
+                                )
+                              }
+                              className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                              autoFocus
+                            />
+
+                            <button
+                              onClick={() =>
+                                renameDocument(
+                                  document.id
+                                )
+                              }
+                              disabled={renameLoading}
+                              className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                            >
+                              {renameLoading
+                                ? "Saving..."
+                                : "Save"}
+                            </button>
+
+                            <button
+                              onClick={cancelRename}
+                              disabled={renameLoading}
+                              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                            >
+                              Cancel
+                            </button>
+
+                          </div>
+
+                        ) : (
+
+                          <p className="break-all font-semibold text-gray-900">
+                            {document.filename}
+                          </p>
+
+                        )}
+
+                        <p className="mt-1 text-sm text-gray-500">
+                          {document.content_type}
+                        </p>
+
+                      </div>
+
                     </div>
 
-                    <div>
+                    {/* ACTIONS */}
 
-                      <p className="font-semibold text-gray-900">
-                        {document.filename}
-                      </p>
+                    {renamingId !== document.id && (
 
-                      <p className="mt-1 text-sm text-gray-500">
-                        {document.content_type}
-                      </p>
+                      <div className="flex shrink-0 flex-wrap items-center gap-2">
 
-                    </div>
+                        <button
+                          onClick={() =>
+                            openDocument(
+                              document.id
+                            )
+                          }
+                          className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                        >
+                          📖 Open
+                        </button>
 
-                  </div>
+                        <button
+                          onClick={() =>
+                            startRename(document)
+                          }
+                          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                        >
+                          ✏️ Rename
+                        </button>
 
-                  {/* Actions */}
+                        <button
+                          onClick={() =>
+                            deleteDocument(
+                              document.id
+                            )
+                          }
+                          className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100"
+                        >
+                          🗑️ Delete
+                        </button>
 
-                  <div className="flex items-center gap-3">
+                      </div>
 
-                    {/* Open */}
-
-                    <button
-                      onClick={() =>
-                        openDocument(document.id)
-                      }
-                      className="text-sm font-semibold text-blue-600 hover:underline"
-                    >
-                      Open →
-                    </button>
-
-                    {/* Delete */}
-
-                    <button
-                      onClick={() =>
-                        deleteDocument(
-                          document.id,
-                          document.filename
-                        )
-                      }
-                      disabled={
-                        deletingId === document.id
-                      }
-                      className="rounded-lg px-3 py-2 text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      title="Delete document"
-                    >
-                      {deletingId === document.id
-                        ? "Deleting..."
-                        : "🗑️"}
-                    </button>
+                    )}
 
                   </div>
 
@@ -548,7 +646,6 @@ export default function DashboardPage() {
         </section>
 
       </div>
-
     </main>
   );
 }
