@@ -81,6 +81,8 @@ const response = await fetch(`${API_URL}/documents/`, {
 
       const token = localStorage.getItem("token");
 
+const token = localStorage.getItem("token");
+
 const response = await fetch(
   `${API_URL}/documents/upload`,
   {
