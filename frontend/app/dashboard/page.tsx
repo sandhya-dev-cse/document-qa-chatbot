@@ -22,6 +22,7 @@ export default function DashboardPage() {
   const [uploading, setUploading] = useState(false);
   const [loadingDocuments, setLoadingDocuments] = useState(true);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // =========================
   // LOAD DOCUMENTS
@@ -33,11 +34,16 @@ export default function DashboardPage() {
 
       const token = localStorage.getItem("token");
 
-const response = await fetch(`${API_URL}/documents/`, {
-  headers: {
-    Authorization: `Bearer ${token}`,
-  },
-});
+      if (!token) {
+        router.push("/");
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/documents/`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       const data = await response.json();
 
@@ -48,7 +54,6 @@ const response = await fetch(`${API_URL}/documents/`, {
       }
 
       setDocuments(data.documents || []);
-
     } catch (error) {
       console.error("Failed to load documents:", error);
     } finally {
@@ -81,18 +86,22 @@ const response = await fetch(`${API_URL}/documents/`, {
 
       const token = localStorage.getItem("token");
 
-const token = localStorage.getItem("token");
+      if (!token) {
+        router.push("/");
+        return;
+      }
 
-const response = await fetch(
-  `${API_URL}/documents/upload`,
-  {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    body: formData,
-  }
-);
+      const response = await fetch(
+        `${API_URL}/documents/upload`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      );
+
       setUploadProgress(70);
 
       const data = await response.json();
@@ -102,25 +111,35 @@ const response = await fetch(
           data.detail || "Upload failed"
         );
       }
+
       setUploadProgress(100);
 
-      setUploadMessage("Document uploaded successfully!");
+      setUploadMessage(
+        "Document uploaded successfully!"
+      );
 
-localStorage.setItem("documentId", data.document_id);
-localStorage.setItem("documentName", data.filename);
+      localStorage.setItem(
+        "documentId",
+        data.document_id
+      );
 
-// Go to the dedicated document page
-setTimeout(() => {
-  router.push("/chat");
-}, 500);
+      localStorage.setItem(
+        "documentName",
+        data.filename
+      );
 
       setFile(null);
 
-      // Reload documents from MongoDB
       await loadDocuments();
+
+      // Go to document chat page
+      setTimeout(() => {
+        router.push("/chat");
+      }, 500);
 
     } catch (error) {
       setUploadProgress(0);
+
       setUploadMessage(
         error instanceof Error
           ? error.message
@@ -135,19 +154,102 @@ setTimeout(() => {
   // OPEN DOCUMENT
   // =========================
 
- const openDocument = (documentId: string) => {
-  localStorage.setItem("documentId", documentId);
+  const openDocument = (documentId: string) => {
+    localStorage.setItem(
+      "documentId",
+      documentId
+    );
 
-  const document = documents.find(
-    (doc) => doc.id === documentId
-  );
+    const document = documents.find(
+      (doc) => doc.id === documentId
+    );
 
-  if (document) {
-    localStorage.setItem("documentName", document.filename);
-  }
+    if (document) {
+      localStorage.setItem(
+        "documentName",
+        document.filename
+      );
+    }
 
-  router.push("/chat");
-};
+    router.push("/chat");
+  };
+
+  // =========================
+  // DELETE DOCUMENT
+  // =========================
+
+  const deleteDocument = async (
+    documentId: string,
+    filename: string
+  ) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${filename}"?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingId(documentId);
+
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        router.push("/");
+        return;
+      }
+
+      const response = await fetch(
+        `${API_URL}/documents/${documentId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail || "Failed to delete document"
+        );
+      }
+
+      // Remove deleted document from the UI
+      setDocuments((previousDocuments) =>
+        previousDocuments.filter(
+          (document) =>
+            document.id !== documentId
+        )
+      );
+
+      // Clear localStorage if this was the current document
+      const currentDocumentId =
+        localStorage.getItem("documentId");
+
+      if (currentDocumentId === documentId) {
+        localStorage.removeItem("documentId");
+        localStorage.removeItem("documentName");
+      }
+
+    } catch (error) {
+      console.error(
+        "Delete document error:",
+        error
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to delete document"
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   // =========================
   // LOGOUT
@@ -155,19 +257,29 @@ setTimeout(() => {
 
   const logout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("documentId");
+    localStorage.removeItem("documentName");
 
     router.push("/");
   };
 
+  // =========================
+  // UI
+  // =========================
+
   return (
     <main className="min-h-screen bg-gray-100 px-4 py-10">
+
       <div className="mx-auto max-w-5xl">
 
-        {/* Header */}
+        {/* =========================
+            HEADER
+        ========================= */}
 
         <div className="mb-8 flex items-center justify-between">
 
           <div>
+
             <h1 className="text-3xl font-bold text-gray-900">
               Dashboard
             </h1>
@@ -175,6 +287,7 @@ setTimeout(() => {
             <p className="mt-1 text-gray-600">
               Upload and manage your documents.
             </p>
+
           </div>
 
           <button
@@ -186,7 +299,9 @@ setTimeout(() => {
 
         </div>
 
-        {/* Upload Card */}
+        {/* =========================
+            UPLOAD CARD
+        ========================= */}
 
         <section className="mb-8 rounded-2xl border border-gray-200 bg-white p-8 shadow-md">
 
@@ -197,6 +312,8 @@ setTimeout(() => {
           <p className="mt-2 text-gray-600">
             Supported formats: PDF and TXT
           </p>
+
+          {/* File Selection */}
 
           <div className="mt-6 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center">
 
@@ -228,6 +345,7 @@ setTimeout(() => {
             </label>
 
             {file && (
+
               <div className="mt-5 rounded-lg border border-gray-200 bg-white p-4">
 
                 <p className="text-sm font-semibold text-gray-800">
@@ -239,11 +357,12 @@ setTimeout(() => {
                 </p>
 
               </div>
+
             )}
 
           </div>
 
-          {/* Upload button */}
+          {/* Upload Button */}
 
           <button
             onClick={uploadDocument}
@@ -255,34 +374,54 @@ setTimeout(() => {
               : "Upload Document"}
           </button>
 
+          {/* Upload Message */}
+
           {uploadMessage && (
+
             <p className="mt-4 rounded-lg bg-gray-50 p-3 text-center font-medium text-gray-800">
               {uploadMessage}
             </p>
+
+          )}
+
+          {/* Upload Progress */}
+
+          {uploading && (
+
+            <div className="mt-4">
+
+              <div className="mb-2 flex justify-between text-sm font-medium text-gray-600">
+
+                <span>
+                  Uploading document...
+                </span>
+
+                <span>
+                  {uploadProgress}%
+                </span>
+
+              </div>
+
+              <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
+
+                <div
+                  className="h-full rounded-full bg-blue-600 transition-all duration-500"
+                  style={{
+                    width: `${uploadProgress}%`,
+                  }}
+                />
+
+              </div>
+
+            </div>
+
           )}
 
         </section>
-        {uploading && (
-  <div className="mt-4">
 
-    <div className="mb-2 flex justify-between text-sm font-medium text-gray-600">
-      <span>Uploading document...</span>
-      <span>{uploadProgress}%</span>
-    </div>
-
-    <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
-      <div
-        className="h-full rounded-full bg-blue-600 transition-all duration-500"
-        style={{
-          width: `${uploadProgress}%`,
-        }}
-      />
-    </div>
-
-  </div>
-)}
-
-        {/* Documents */}
+        {/* =========================
+            DOCUMENTS
+        ========================= */}
 
         <section className="rounded-2xl border border-gray-200 bg-white p-8 shadow-md">
 
@@ -298,6 +437,8 @@ setTimeout(() => {
 
           </div>
 
+          {/* Loading */}
+
           {loadingDocuments ? (
 
             <div className="py-10 text-center text-gray-500">
@@ -305,6 +446,8 @@ setTimeout(() => {
             </div>
 
           ) : documents.length === 0 ? (
+
+            /* No Documents */
 
             <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-10 text-center">
 
@@ -324,47 +467,77 @@ setTimeout(() => {
 
           ) : (
 
+            /* Document List */
+
             <div className="space-y-3">
 
               {documents.map((document) => (
 
-                <button
+                <div
                   key={document.id}
-                  onClick={() =>
-                    openDocument(document.id)
-                  }
-                  className="w-full rounded-xl border border-gray-200 bg-white p-5 text-left transition hover:border-blue-400 hover:bg-blue-50"
+                  className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white p-5 transition hover:border-blue-400 hover:bg-blue-50"
                 >
 
-                  <div className="flex items-center justify-between">
+                  {/* Document Information */}
 
-                    <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4">
 
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-2xl">
-                        📄
-                      </div>
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-2xl">
+                      📄
+                    </div>
 
-                      <div>
+                    <div>
 
-                        <p className="font-semibold text-gray-900">
-                          {document.filename}
-                        </p>
+                      <p className="font-semibold text-gray-900">
+                        {document.filename}
+                      </p>
 
-                        <p className="mt-1 text-sm text-gray-500">
-                          {document.content_type}
-                        </p>
-
-                      </div>
+                      <p className="mt-1 text-sm text-gray-500">
+                        {document.content_type}
+                      </p>
 
                     </div>
 
-                    <span className="text-sm font-semibold text-blue-600">
+                  </div>
+
+                  {/* Actions */}
+
+                  <div className="flex items-center gap-3">
+
+                    {/* Open */}
+
+                    <button
+                      onClick={() =>
+                        openDocument(document.id)
+                      }
+                      className="text-sm font-semibold text-blue-600 hover:underline"
+                    >
                       Open →
-                    </span>
+                    </button>
+
+                    {/* Delete */}
+
+                    <button
+                      onClick={() =>
+                        deleteDocument(
+                          document.id,
+                          document.filename
+                        )
+                      }
+                      disabled={
+                        deletingId === document.id
+                      }
+                      className="rounded-lg px-3 py-2 text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      title="Delete document"
+                    >
+                      {deletingId === document.id
+                        ? "Deleting..."
+                        : "🗑️"}
+                    </button>
 
                   </div>
 
-                </button>
+                </div>
 
               ))}
 
@@ -375,6 +548,7 @@ setTimeout(() => {
         </section>
 
       </div>
+
     </main>
   );
 }

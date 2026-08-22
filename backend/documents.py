@@ -294,3 +294,52 @@ async def upload_document(
         "filename": file.filename,
         "chunks_created": len(chunks)
     }
+    # =========================
+# DELETE DOCUMENT
+# =========================
+
+@router.delete("/{document_id}")
+def delete_document(
+    document_id: str,
+    authorization: str = Header(...)
+):
+
+    # Get logged-in user
+    user_id = get_current_user_id(authorization)
+
+    try:
+        object_id = ObjectId(document_id)
+
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid document ID"
+        )
+
+    # Find document belonging to this user
+    document = db.documents.find_one({
+        "_id": object_id,
+        "user_id": user_id
+    })
+
+    if not document:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found"
+        )
+
+    # Delete document
+    db.documents.delete_one({
+        "_id": object_id,
+        "user_id": user_id
+    })
+
+    # Delete its chunks
+    db.document_chunks.delete_many({
+        "document_id": object_id,
+        "user_id": user_id
+    })
+
+    return {
+        "message": "Document deleted successfully"
+    }
