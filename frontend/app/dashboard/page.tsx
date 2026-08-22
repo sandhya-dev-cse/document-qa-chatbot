@@ -31,7 +31,13 @@ export default function DashboardPage() {
     try {
       setLoadingDocuments(true);
 
-      const response = await fetch(`${API_URL}/documents/`);
+      const token = localStorage.getItem("token");
+
+const response = await fetch(`${API_URL}/documents/`, {
+  headers: {
+    Authorization: `Bearer ${token}`,
+  },
+});
 
       const data = await response.json();
 
@@ -73,13 +79,18 @@ export default function DashboardPage() {
       setUploadProgress(10);
       setUploadMessage("Uploading document...");
 
-      const response = await fetch(
-        `${API_URL}/documents/upload`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
+      const token = localStorage.getItem("token");
+
+const response = await fetch(
+  `${API_URL}/documents/upload`,
+  {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  }
+);
       setUploadProgress(70);
 
       const data = await response.json();
